@@ -12,12 +12,33 @@ from netmiko.cisco_base_connection import CiscoBaseConnection, CiscoFileTransfer
 class CiscoIosBase(CiscoBaseConnection):
     """Common Methods for IOS (both SSH and telnet)."""
 
+    def send_command(self, *args, **kwargs):
+        """
+        Added error catching in this method for tp-link
+        """
+        output = super(CiscoBaseConnection, self).send_command(*args, **kwargs)
+
+        ''' Not fully tested so commented out. Doesn't work consistently in that sometimes the first 5 chars of the command aren't returned
+        # Often the command is returned in the output, so we strip it out
+        if args[0] in output:
+            output = output.split('%s\r\n' % args[0])[1]
+        '''
+
+        if (output.find('Error') != -1):
+            raise IOError(
+                "The following error was returned by TP-Link: {}".format(
+                    output[output.find('Error'):]
+                )
+            )
+
+        return output
+
     def session_preparation(self):
         """Prepare the session after the connection has been established."""
         self._test_channel_read(pattern=r"[>#]")
         self.set_base_prompt()
         self.disable_paging()
-        self.set_terminal_width(command="terminal width 511")
+        # self.set_terminal_width(command="terminal width 511") #  this has to be disabled or it freezes on infinite prompt with tp-link
         # Clear the read buffer
         time.sleep(0.3 * self.global_delay_factor)
         self.clear_buffer()
@@ -38,6 +59,25 @@ class CiscoIosBase(CiscoBaseConnection):
             cmd=cmd, confirm=confirm, confirm_response=confirm_response
         )
 
+'''
+TODO Dave make strip command work ok
+    def strip_command(self, command_string, output):
+        """
+        DAVE ADDING HERE AS CUSTOM NEEDED FOR TP-LINK
+        Strip command_string from output string
+
+        TP-Link returns, the \r\n\r\n\rT1500G-10PS(config)#command\r\n
+        command_string = 'show vlan\n'
+        
+        :param command_string: The command string sent to the device
+        :type command_string: str
+
+        :param output: The returned output as a result of the command string sen
+        :type output: str
+        """
+        command_length = len(self.find_prompt()) + 2 * (len(command_string)) + 2
+        return output[command_length:]
+'''
 
 class CiscoIosSSH(CiscoIosBase):
     """Cisco IOS SSH driver."""

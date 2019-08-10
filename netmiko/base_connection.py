@@ -461,6 +461,7 @@ class BaseConnection(object):
                         raise EOFError("Channel stream closed by remote device.")
                     output += outbuf.decode("utf-8", "ignore")
                 else:
+                    self.remote_conn.sendall(self.RESPONSE_RETURN)
                     break
         elif self.protocol == "telnet":
             output = self.remote_conn.read_very_eager().decode("utf-8", "ignore")
@@ -592,6 +593,7 @@ class BaseConnection(object):
                     break
                 else:
                     channel_data += new_data
+                    break
             i += 1
         return channel_data
 
